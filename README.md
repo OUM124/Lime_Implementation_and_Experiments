@@ -44,12 +44,8 @@ lime_reproduction/
 │   │   │   │   └── husky_grass/    # 5 images of huskies on grass
 │   │   │   └── val/
 │   │   │       └── husky_snow/     # 1 image of husky on snow (trick image)
-│   │   └── 20newsgroups/           # Downloaded automatically
-│   └── processed/
+│   
 │
-├── models/                 # Saved trained models (not in git)
-│   ├── bad_husky_model.pkl
-│   └── text_classifier.pkl
 │
 ├── src/                    # Core Library
 │   ├── __init__.py
@@ -69,17 +65,16 @@ lime_reproduction/
 │       ├── __init__.py
 │       ├── segmentation.py # Quickshift/SLIC wrappers
 │       ├── visualization.py# Plotting explanations
-│       └── data_loader.py  # Dataset downloaders
 │
 ├── experiments/            # Reproducing Paper Results
-│   ├── 01_text_sentiment.ipynb      # Section 5.1/3.5
-│   ├── 02_image_inception.ipynb     # Section 3.6 (Guitar)
-│   ├── 03_bad_classifier.ipynb      # Section 6.4 (Wolf/Husky)
-│   └── 04_sp_lime_global.ipynb      # Section 4 (Global Trust)
+│   ├── 01_text_reproduction.ipynb      
+│   ├── 02_husky_vs_wolf.ipynb     
+│   └── 04_sp_lime_global.ipynb      
 │
 ├── results/                # Generated plots and figures
 │   ├── husky_wolf_explanation.png
-│   └── sp_lime_text.png
+|   |── lime.png
+│   └── sp_lime_text_results.png
 │
 └── tests/                  # Unit Tests
     ├── test_k_lasso.py
