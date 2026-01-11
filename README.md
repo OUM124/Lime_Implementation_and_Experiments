@@ -13,7 +13,7 @@ The goal of this project is to implement **LIME** (Local Interpretable Model-agn
 We reproduced the experiment described in **Section 6.4**. We trained a classifier on a biased dataset where **Wolves appear on Snow** and **Huskies on Grass**.
 
 - **Prediction:** The model predicts "Wolf" for a Husky sitting on snow.
-- **LIME Explanation:** As shown below, the explanation highlights only the background (snow/artifacts), proving the model ignores the animal entirely. It is a **"Snow Detector,"** not a Wolf detector.
+- **LIME Explanation:** As shown below, the explanation highlights only the background (snow/artifacts), proving the model ignores the animal entirely. It is a **"Snow Detector,"** not a Wolf detector, most importantly the model doesn't base its prediction on the caracteristics of the animal, but rather on some random artifacts.  
 
 ![Husky vs Wolf Explanation](results/husky_wolf_explanation.png)
 
@@ -24,7 +24,7 @@ We reproduced **Section 6.2** using the **20 Newsgroups** dataset. We trained an
 - **Random Selection:** Often shows valid predictions, misleading the user into trusting the model.
 - **SP-LIME Selection:** Mathematically selects a representative set. It successfully surfaces instances where the model relies on `Organization`, `Posting-Host`, and `Nntp-Posting`, identifying data leakage immediately.
 
-![SP-LIME Text Results](results/sp_lime_text.png)
+![LIME Text Results](results/lime.png)
 
 ---
 
