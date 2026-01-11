@@ -1,5 +1,6 @@
 """
 LIME Explainer for Image Data.
+Implements segmentation-based perturbation.
 """
 
 import numpy as np
@@ -12,7 +13,8 @@ class LimeImageExplainer(LimeBase):
     def __init__(self, kernel_width=0.25, verbose=False, random_state=None):
         """
         Args:
-            kernel_width (float): L2 Distance width. 0.25 is standard for normalized images.
+            kernel_width (float): L2 Distance width. 0.25 is standard for images 
+                                  when pixel distance is small in binary space.
             random_state (int): For reproducibility.
         """
         super().__init__(kernel_width, verbose)
@@ -22,23 +24,28 @@ class LimeImageExplainer(LimeBase):
                          hide_color=None, num_features=10, num_samples=1000, 
                          segmentation_fn=None):
         """
+        Generates explanation for an image.
+        
         Args:
-            image (np.ndarray): 3D RGB image.
-            classifier_fn (callable): Takes batch of images, returns predictions.
+            image (np.ndarray): 3D RGB image (H, W, 3).
+            classifier_fn (callable): Takes a batch of images (N, H, W, 3), returns (N, num_classes).
             labels (tuple): Class indices to explain.
-            hide_color (float/None): If None, replace 'off' superpixels with mean color.
-                                     If float/int, replace with that solid color.
+            hide_color (float/None): Color to replace 'removed' segments. 
+                                     If None, uses mean color of the superpixel.
+                                     For 'Gray out', pass roughly 128 (if 0-255) or 0.5 (if 0-1).
             segmentation_fn (callable): Custom segmentation. If None, uses Quickshift.
         """
         
-        # 1. Segment the image (Define Interpretable Representation)
+        # 1. Segment the image
         if segmentation_fn is None:
-            segmentation_fn = SegmentationAlgorithm('quickshift', kernel_size=4, max_dist=200, ratio=0.2)
+            segmentation_fn = SegmentationAlgorithm('quickshift')
         
-        # segments is a 2D mask (H, W) where value = segment_id
         segments = segmentation_fn(image)
         unique_segments = np.unique(segments)
         num_segments = len(unique_segments)
+        
+        if self.verbose:
+            print(f"Image segmented into {num_segments} super-pixels.")
         
         # 2. Generate Synthetic Neighborhood (Perturbation)
         # Returns: data (binary matrix), perturbed_images (list of 3D arrays)
@@ -46,13 +53,11 @@ class LimeImageExplainer(LimeBase):
             image, segments, num_segments, num_samples, hide_color
         )
 
-        # 3. Get Predictions
-        # classifier_fn expects numpy array of images
+        # 3. Get Predictions (Heavy Computation)
         predictions = classifier_fn(np.array(perturbed_imgs))
 
-        # 4. Calculate Distances (L2 Distance)
+        # 4. Calculate Distances (L2 Distance for Images)
         # data[0] is the original (all 1s).
-        # We calculate Euclidean distance between binary vectors.
         distances = pairwise_distances(data, data[0].reshape(1, -1), metric='euclidean').ravel()
 
         # 5. Solve for requested labels
@@ -69,8 +74,10 @@ class LimeImageExplainer(LimeBase):
             
             # Add metadata for visualization
             result['segments'] = segments
-            # We don't map to "words", we map to segment IDs
+            # We don't map to "words", we map to segment IDs (integers)
             result['explanation_map'] = result['explanation'] 
+            result['target_class'] = label # <--- FIX for Visualization
+            
             explanations[label] = result
             
         return explanations
@@ -80,6 +87,7 @@ class LimeImageExplainer(LimeBase):
         Generates perturbed images by masking superpixels.
         """
         # data: Binary matrix (N x num_segments)
+        # 1 = Superpixel active (visible), 0 = Superpixel inactive (hidden)
         data = self.random_state.randint(0, 2, size=(num_samples, num_segments))
         
         # First row is always the original image (all active)
@@ -87,39 +95,32 @@ class LimeImageExplainer(LimeBase):
         
         imgs = []
         
-        # Pre-calculate the "fudged" background image
-        # If hide_color is None, we use the mean color of the superpixel (conceptually better)
-        # But standard LIME often just uses the mean of the WHOLE image or gray.
-        # Let's support a solid background color (e.g., gray) for simplicity similar to paper.
-        
-        temp_img = image.copy()
-        
+        # Pre-calculate mean color if we aren't using a fixed hide_color
+        if hide_color is None:
+            # We can use the mean of the whole image for simplicity
+            fudged_image = image.copy()
+            fudged_image[:] = np.mean(image, axis=(0, 1))
+        else:
+            fudged_image = image.copy()
+            fudged_image[:] = hide_color
+
         for row in data:
-            # Create a copy for this perturbation
-            # If the row is [1, 1, 1], mask is empty.
-            # If row is [0, 1, 0], we hide segments 0 and 2.
+            # Fast Masking
+            # Create a mask where (segments == inactive_segment_id)
             
-            # Fast Masking using Boolean Indexing
-            # We want a mask of pixels where segment_id is OFF (0 in row)
-            
-            # Identify which segment IDs are turned OFF
+            # Find which segments are OFF (0)
             zeros = np.where(row == 0)[0]
             
-            # Create a boolean mask of the image shape
-            # segments is (H, W). np.isin checks if pixel's segment ID is in 'zeros'
+            # Create boolean mask for the whole image
+            # np.isin is efficient: true if pixel belongs to a zero-segment
             mask = np.isin(segments, zeros)
             
-            # Apply mask
-            pert_img = image.copy()
+            # Create the perturbation
+            temp = image.copy()
             
-            if hide_color is None:
-                # Use mean color of the image as background (or gray)
-                # Paper Figure 3 uses gray.
-                c = np.mean(image, axis=(0,1))
-                pert_img[mask] = c
-            else:
-                pert_img[mask] = hide_color
-                
-            imgs.append(pert_img)
+            # Apply the "fudged" background to the masked areas
+            temp[mask] = fudged_image[mask]
+            
+            imgs.append(temp)
             
         return data, imgs
