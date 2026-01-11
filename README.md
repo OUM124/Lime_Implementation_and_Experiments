@@ -24,7 +24,7 @@ We reproduced **Section 6.2** using the **20 Newsgroups** dataset. We trained an
 - **Random Selection:** Often shows valid predictions, misleading the user into trusting the model.
 - **SP-LIME Selection:** Mathematically selects a representative set. It successfully surfaces instances where the model relies on `Organization`, `Posting-Host`, and `Nntp-Posting`, identifying data leakage immediately.
 
-![LIME Text Results](results/lime.png)
+![SP-LIME Text Results](results/sp_lime_text_results.png)
 
 ---
 
